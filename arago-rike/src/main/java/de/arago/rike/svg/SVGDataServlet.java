@@ -42,6 +42,12 @@ public class SVGDataServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
+        /*  if (SecurityHelper.getUserFromRequest(request) == null)
+          {
+            response.setStatus(403);
+            return;
+          } */
+
         String action = request.getParameter("action");
         action = action == null || action.length() == 0 ? "graph" : action;
 
@@ -118,7 +124,7 @@ public class SVGDataServlet extends HttpServlet {
             ret.put("error", true);
         }
 
-        response.setContentType("application/json;charset:utf-8");
+        response.setContentType("application/json;charset=utf-8");
 
         ret.writeJSONString(response.getWriter());
     }
@@ -138,7 +144,7 @@ public class SVGDataServlet extends HttpServlet {
             ret.put("error", true);
         }
 
-        response.setContentType("application/json;charset:utf-8");
+        response.setContentType("application/json;charset=utf-8");
 
         ret.writeJSONString(response.getWriter());
     }

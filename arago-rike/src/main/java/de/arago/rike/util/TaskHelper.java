@@ -22,20 +22,14 @@
  */
 package de.arago.rike.util;
 
-import de.arago.data.IDataWrapper;
 import de.arago.rike.data.Artifact;
 import de.arago.rike.data.DataHelperRike;
 import de.arago.rike.data.Milestone;
 import de.arago.rike.data.Task;
-import de.arago.rike.data.TaskLog;
+import de.arago.rike.data.ActivityLog;
 import de.arago.rike.data.TaskUser;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
+
 import java.util.List;
 import org.hibernate.Criteria;
 import org.hibernate.criterion.Order;
@@ -44,6 +38,16 @@ import org.hibernate.criterion.Restrictions;
 public class TaskHelper {
     private static final String POST_HOOK = System.getProperty(TaskHelper.class.getName() + ".postLogHook", "").trim();
     public static final long OTHER_ARTEFACT_ID = 18;
+
+    private static final int hourOffsetToStartTask;
+
+    static {
+        try {
+            hourOffsetToStartTask = Integer.valueOf(System.getProperty("de.arago.rike.timeOffset", "0"), 10) * 60 * 60 * 1000;
+        } catch(Exception ex) {
+            throw new ExceptionInInitializerError(ex);
+        }
+    }
 
     private static DataHelperRike<Task> taskHelper() {
         return new DataHelperRike<Task>(Task.class);
@@ -92,7 +96,7 @@ public class TaskHelper {
         }
 
         if (filter.getPriority().length() > 0) {
-            crit.add(Restrictions.eq("priority", filter.getPriority()));
+            crit.add(Restrictions.eq("priority", Integer.valueOf(filter.getPriority(), 10)));
         }
     }
 
@@ -106,8 +110,8 @@ public class TaskHelper {
         return helper.list(crit);
     }
 
-    public static List<TaskLog> getRecentTaskLogs() {
-        DataHelperRike<TaskLog> helper = new DataHelperRike<TaskLog>(TaskLog.class);
+    public static List<ActivityLog> getRecentActivityLogs() {
+        DataHelperRike<ActivityLog> helper = new DataHelperRike<ActivityLog>(ActivityLog.class);
 
         return helper.list(helper.filter().addOrder(Order.desc("id")).setMaxResults(30));
     }
@@ -144,6 +148,9 @@ public class TaskHelper {
             newUser.setLast_ms("");
 
             helper.save(newUser);
+
+            ActivityLogHelper.log(" joined", "new", user, null, new HashMap());
+
             return newUser;
         } else
             return list.get(0);
@@ -167,68 +174,12 @@ public class TaskHelper {
     }
 
     public static boolean canDoTask(String user, Task task) {
-        if (!task.getCreator().equals(user)) return true;
+        if (task.getStatusEnum() != Task.Status.OPEN) return false;
 
-        if (task.getCreated().getTime() < (System.currentTimeMillis() - 24 * 60 * 60 * 1000)) return true;
+        if (!task.getRatedBy().equals(user)) return true;
+
+        if (task.getCreated().getTime() < (System.currentTimeMillis() - hourOffsetToStartTask)) return true;
 
         return false;
-    }
-
-    public static void log(String content, Task task, String user, IDataWrapper data) {
-        final TaskLog log = new TaskLog();
-
-        log.setContent(content);
-        log.setUser(user);
-        log.setCreated(new Date());
-        log.setStatus(task.getStatus());
-
-        new DataHelperRike<TaskLog>(TaskLog.class).save(log);
-
-        HashMap<String, Object> notificationParam = new HashMap<String, Object>();
-
-        notificationParam.put("id", task.getId().toString());
-        data.setEvent("TaskLogNotification", notificationParam);
-
-        runPostHook(log);
-    }
-
-    private static void runPostHook(final TaskLog log) {
-        if (POST_HOOK.isEmpty()) return;
-
-        System.err.println("running posthook " + POST_HOOK + " " + log.getContent().replaceAll("<[^>]+>", ""));
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Closeable[] todo = new Closeable[3];
-
-                try {
-                    List<String> cmd = new ArrayList<String>(Arrays.asList(POST_HOOK.split("\\ +")));
-                    cmd.add("rike: "  + log.getUser() + " " + log.getContent().replaceAll("<[^>]+>", ""));
-
-                    Process proc = Runtime.getRuntime().exec(cmd.toArray(new String[0]));
-
-                    todo[0] = proc.getErrorStream();
-                    todo[1] = proc.getInputStream();
-                    todo[2] = proc.getOutputStream();
-
-                    int res = proc.waitFor();
-
-                    if (res != 0) throw new IllegalStateException("posthook failed " + res);
-                } catch(InterruptedException e) {
-                    Thread.interrupted();
-                } catch(IOException e) {
-                    throw new RuntimeException(e);
-                } finally {
-                    for (Closeable c: todo) {
-                        try {
-                            if (c != null) c.close();
-                        } catch(IOException ignored) {
-                            // blank
-                        }
-                    }
-                }
-            }
-        }).start();
     }
 }

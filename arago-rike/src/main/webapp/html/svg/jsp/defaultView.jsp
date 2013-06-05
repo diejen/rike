@@ -1,3 +1,4 @@
+<%@page import="com.liferay.portal.util.PortalUtil"%>
 <%@page import="de.arago.portlet.jsp.UserService"%>
 <%@page import="de.arago.portlet.jsp.JspUserService"%>
 <%@page import="de.arago.rike.data.Artifact"%>
@@ -48,7 +49,7 @@
                 <tr>
                   <td>User:</td>
                   <td>
-                    <select name="user" style="width:150px">
+                    <select name="user"  class="rike-select">
                       <option <%= filter.getUser().length() == 0 ? "selected='selected'" : ""%> value="">All</option>
                       <% for (TaskUser user: ViewHelper.getAvailableUsers()) {%>
 
@@ -64,7 +65,7 @@
                 <tr>
                   <td>Milestone:</td>
                   <td>
-                    <select name="milestone" style="width:150px">
+                    <select name="milestone"  class="rike-select">
                       <% for (String[] data: ViewHelper.getAvailableMilestones(service)) {%>
 
                       <option <%= filter.getMilestone().equals(data[0]) ? "selected='selected'" : ""%> value="<%= StringEscapeUtils.escapeHtml(data[0])%>"><%= StringEscapeUtils.escapeHtml(data[1])%></option>
@@ -79,7 +80,7 @@
                 <tr>
                   <td>Artifact:</td>
                   <td>
-                    <select name="artifact" style="width:150px">
+                    <select name="artifact"  class="rike-select">
                       <option <%= filter.getMilestone().length() == 0 ? "selected='selected'" : ""%> value="">All</option>
                       <% for (Artifact artifact: ViewHelper.getAvailableArtifacts()) {%>
 
@@ -107,6 +108,13 @@
       </div>
     </div>
     <script type="text/javascript">
+
+    top.openRikeTask = function(id)
+    {
+      window.location = '/web/guest/rike/-/show/task/' + (id * 1);
+      return false;
+    };
+
 
       window.onload = <portlet:namespace />enrichSVG;
 
@@ -229,7 +237,7 @@
           var svgNode = $('svg', doc).get(0);
 
           var outer_width = $('#<portlet:namespace/>Portlet').width() - 12;
-          var outer_height = $('#<portlet:namespace/>Portlet').height() - 56;
+          var outer_height = $('#<portlet:namespace/>Portlet').height() - 60;
 
           $("#<portlet:namespace />SVG").width(outer_width).height(outer_height);
           $('#<portlet:namespace/>PortletContent').show();
